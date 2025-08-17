@@ -1,0 +1,18 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "QLUA KAT",
+   Icon = 0, 
+   LoadingTitle = "SCRIPT FOR KAT",
+   LoadingSubtitle = "by 1QLUA",
+   ShowText = "Rayfield", 
+   Theme = "Ocean", 
+   ToggleUIKeybind = "K", 
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+})
+
+local Tab = Window:CreateTab("Tab Example", 4483362458) 
+
+local Label = Tab:CreateLabel("Label Example", 4483362458, Color3.fromRGB(255, 255, 255), false) 
