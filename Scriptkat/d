@@ -1,0 +1,244 @@
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+-- Настройки
+local TARGET_FOLDER_NAME = "WorldIgnore"
+local PICKUPS_SUBFOLDER = "Pickups"
+local TELEPORT_INTERVAL = 0.3
+local SCAN_INTERVAL = 1
+
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+print("=== СКРИПТ ТЕЛЕПОРТАЦИИ ЗАПУЩЕН ===")
+print("Режим: обнаружение моделей CrateModel в папке")
+
+-- Генерация уникального ID для скрипта
+local SCRIPT_ID = HttpService:GenerateGUID(false):sub(1, 8)
+print("ID скрипта: " .. SCRIPT_ID)
+
+-- Функция безопасного получения детей папки
+local function safeGetChildren(folder)
+    local success, result = pcall(function()
+        return folder:GetChildren()
+    end)
+    
+    if success then
+        return result
+    else
+        print("⚠️ Ошибка доступа к папке: " .. tostring(result))
+        return {}
+    end
+end
+
+-- Функция для поиска основной части в модели
+local function findPrimaryPartInModel(model)
+    local success, primaryPart = pcall(function()
+        if model.PrimaryPart then
+            return model.PrimaryPart
+        end
+        
+        -- Ищем любую часть в модели
+        for _, child in ipairs(model:GetChildren()) do
+            if child:IsA("BasePart") then
+                return child
+            end
+        end
+        
+        return nil
+    end)
+    
+    if success and primaryPart then
+        return primaryPart
+    end
+    
+    return nil
+end
+
+-- Функция безопасного получения позиции модели
+local function safeGetModelPosition(model)
+    local success, position = pcall(function()
+        -- Пробуем получить PrimaryPart сначала
+        if model.PrimaryPart then
+            return model.PrimaryPart.Position
+        end
+        
+        -- Ищем любую часть в модели
+        for _, child in ipairs(model:GetChildren()) do
+            if child:IsA("BasePart") then
+                return child.Position
+            end
+        end
+        
+        return nil
+    end)
+    
+    if success then
+        return position
+    else
+        print("⚠️ Ошибка чтения позиции модели: " .. tostring(position))
+        return nil
+    end
+end
+
+-- Функция для поиска целевой папки
+local function findTargetFolder()
+    local success, mainFolder = pcall(function()
+        return Workspace:FindFirstChild(TARGET_FOLDER_NAME)
+    end)
+    
+    if not success or not mainFolder then
+        print("❌ Основная папка '" .. TARGET_FOLDER_NAME .. "' не найдена")
+        return nil
+    end
+    
+    local success2, pickupsFolder = pcall(function()
+        return mainFolder:FindFirstChild(PICKUPS_SUBFOLDER)
+    end)
+    
+    if success2 and pickupsFolder then
+        print("✅ Папка Pickups найдена")
+        return pickupsFolder
+    else
+        print("❌ Подпапка '" .. PICKUPS_SUBFOLDER .. "' не найдена")
+        return nil
+    end
+end
+
+-- Функция для сканирования моделей в папке
+local function scanFolderModels(folder)
+    local models = {}
+    
+    local children = safeGetChildren(folder)
+    print("📊 Найдено объектов в папке: " .. #children)
+    
+    for _, child in ipairs(children) do
+        local success, className = pcall(function()
+            return child.ClassName
+        end)
+        
+        if success then
+            print("   - " .. child.Name .. " (" .. className .. ")")
+            
+            if className == "Model" then
+                local position = safeGetModelPosition(child)
+                if position then
+                    table.insert(models, {
+                        Model = child,
+                        Position = position,
+                        Name = child.Name
+                    })
+                    print("     📍 Позиция модели: " .. tostring(position))
+                end
+            elseif className == "Part" then
+                local position = safeGetModelPosition(child)
+                if position then
+                    table.insert(models, {
+                        Model = child,
+                        Position = position,
+                        Name = child.Name
+                    })
+                    print("     📍 Позиция части: " .. tostring(position))
+                end
+            end
+        end
+    end
+    
+    return models
+end
+
+-- Функция для плавной телепортации
+local function smoothTeleport(targetPosition)
+    if not humanoidRootPart or not humanoidRootPart.Parent then
+        print("⚠️ Персонаж не доступен")
+        return false
+    end
+    
+    if not targetPosition then
+        print("⚠️ Неверная позиция")
+        return false
+    end
+    
+    -- Плавное перемещение
+    pcall(function()
+        local targetCFrame = CFrame.new(targetPosition + Vector3.new(0, 5, 0)) -- Выше чтобы не застрять
+        humanoidRootPart.CFrame = targetCFrame
+    end)
+    
+    return true
+end
+
+-- Основная функция мониторинга
+local function monitorAndTeleport()
+    print("🔄 Запуск мониторинга моделей...")
+    
+    while true do
+        -- Обновляем ссылки на персонажа
+        if not character or not humanoidRootPart then
+            character = localPlayer.Character
+            if character then
+                humanoidRootPart = character:WaitForChild("HumanoidRootPart", 2)
+                if humanoidRootPart then
+                    print("👤 Персонаж готов")
+                end
+            end
+        end
+        
+        -- Поиск целевой папки
+        local targetFolder = findTargetFolder()
+        
+        if targetFolder then
+            -- Сканируем модели в папке
+            local models = scanFolderModels(targetFolder)
+            
+            if #models > 0 then
+                local targetModel = models[1]
+                print("🎯 Обнаружена модель: " .. targetModel.Name)
+                print("📍 Телепортируюсь к: " .. tostring(targetModel.Position))
+                
+                -- Телепортация
+                if smoothTeleport(targetModel.Position) then
+                    print("✅ Успешно телепортирован")
+                else
+                    print("❌ Ошибка телепортации")
+                end
+            else
+                print("📭 Модели не найдены в папке")
+            end
+        else
+            print("❌ Целевая папка не доступна")
+        end
+        
+        wait(TELEPORT_INTERVAL)
+    end
+end
+
+-- Обработка изменений персонажа
+local function setupCharacterHandling()
+    localPlayer.CharacterAdded:Connect(function(newChar)
+        character = newChar
+        humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+        print("🔄 Персонаж изменен")
+    end)
+end
+
+-- Запуск скрипта
+print("⏳ Инициализация...")
+setupCharacterHandling()
+
+-- Даем время на загрузку игры
+wait(3)
+
+-- Запускаем мониторинг
+spawn(function()
+    local success, err = pcall(monitorAndTeleport)
+    if not success then
+        print("💥 Критическая ошибка: " .. tostring(err))
+    end
+end)
+
+print("✅ Скрипт запущен!")
+print("🔍 Ищу модели CrateModel в папке Pickups")
