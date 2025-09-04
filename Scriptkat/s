@@ -1,0 +1,20 @@
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local autoRejoinConnection
+local targetCheckConnection
+
+-- Функция для получения цели из интерфейса
+local function getTargetPlayerName()
+    local success, result = pcall(function()
+        return LocalPlayer.PlayerGui.GameUI.HUD.TargetUI.TargetHolder.TargetName.Text
+    end)
+    return success and result or nil
+end
+
+-- Функция для поиска игрока по имени
+local function findPlayerByName(name)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name == name or player.DisplayName == name then
