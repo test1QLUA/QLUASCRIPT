@@ -1,0 +1,47 @@
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local clicking = false
+local clickDelay = 0.05
+
+function getScreenCenter()
+    local camera = workspace.CurrentCamera
+    if not camera then return Vector2.new(0, 0) end
+    local size = camera.ViewportSize
+    return Vector2.new(size.X / 2, size.Y / 2)
+end
+
+function performCenterClick()
+    local center = getScreenCenter()
+    
+    -- Move to center
+    VirtualInputManager:SendMouseMoveEvent(center.X, center.Y, game:GetService("CoreGui"))
+    
+    -- Mouse down
+    VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, nil, 0)
+    task.wait(0.02)
+    
+    -- Mouse up
+    VirtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, nil, 0)
+end
+
+-- Main loop
+task.spawn(function()
+    while true do
+        if clicking then
+            pcall(performCenterClick)
+        end
+        task.wait(clickDelay)
+    end
+end)
+
+-- Hotkey
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.F then
+        clicking = not clicking
+        print("Center Clicker: " .. (clicking and "ON" or "OFF"))
+    end
+end)
+
+print("Center Auto-Clicker loaded! Press F to toggle")
