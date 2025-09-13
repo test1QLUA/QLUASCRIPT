@@ -1,0 +1,69 @@
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+-- Функция для безопасного выполнения скриптов в отдельных потоках
+local function executeScriptAsync(url)
+    coroutine.wrap(function()
+        local success, result = pcall(function()
+            return loadstring(game:HttpGet(url, true))()
+        end)
+        
+        if not success then
+            warn("Ошибка при выполнении скрипта " .. url .. ": " .. tostring(result))
+        end
+    end)()
+end
+
+-- Конфигурация скриптов для разных пользователей
+local scriptConfig = {
+    ["0ur4e8061mrc26"] = {
+        "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/tp",
+        "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/noclip",
+        "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/knife",
+        "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/clik",
+		    "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/antiafk"
+        -- Добавьте здесь дополнительные скрипты
+    },
+    
+    ["another_user"] = {
+        "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/tp",
+        "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/noclip"
+        -- Добавьте здесь дополнительные скрипты
+    },
+    
+    -- Добавьте здесь других пользователей
+    -- ["никнейм"] = {"скрипт1", "скрипт2"},
+}
+
+-- Скрипты по умолчанию (для всех остальных пользователей)
+local defaultScripts = {
+    "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/tp",
+    "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/noclip",
+    "https://raw.githubusercontent.com/test1QLUA/QLUASCRIPT/refs/heads/main/farm/antiafk"
+
+}
+
+-- Основная функция
+local function main()
+    local username = localPlayer.Name
+    local scriptsToExecute = scriptConfig[username] or defaultScripts
+    
+    -- Асинхронное выполнение всех скриптов
+    for _, scriptUrl in ipairs(scriptsToExecute) do
+        executeScriptAsync(scriptUrl)
+    end
+    
+    print("Запускается " .. #scriptsToExecute .. " скриптов для пользователя: " .. username)
+    
+    -- Небольшая задержка для вывода информации о завершении
+    delay(1, function()
+        print("Все скрипты запущены асинхронно")
+    end)
+end
+
+-- Запуск основной функции
+local success, errorMessage = pcall(main)
+
+if not success then
+    warn("Ошибка при выполнении основного скрипта: " .. tostring(errorMessage))
+end
