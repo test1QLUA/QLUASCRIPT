@@ -1,0 +1,35 @@
+local targetPosition = Vector3.new(100, 500, 200)
+local teleportEnabled = false
+
+local function toggleTeleport()
+    teleportEnabled = not teleportEnabled
+    print("Телепортация: " .. (teleportEnabled and "ВКЛ" or "ВЫКЛ"))
+end
+
+-- Настройка горячей клавиши (например, клавиша T)
+local UIS = game:GetService("UserInputService")
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.T then
+        toggleTeleport()
+    end
+end)
+
+-- Основной цикл телепортации
+spawn(function()
+    while true do
+        if teleportEnabled then
+            pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                if player and player.Character then
+                    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        rootPart.CFrame = CFrame.new(targetPosition)
+                    end
+                end
+            end)
+        end
+        wait(0.01)
+    end
+end)
+
+print("Нажмите T для включения/выключения телепортации")
