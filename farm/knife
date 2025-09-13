@@ -1,0 +1,86 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local function getKnifeInCharacter()
+    -- Ищем нож в персонаже (уже экипирован)
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name == "Knife" then
+            return tool
+        end
+    end
+    return nil
+end
+
+local function getKnifeInBackpack()
+    -- Ищем нож в инвентаре
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name == "Knife" then
+                return item
+            end
+        end
+    end
+    return nil
+end
+
+local function equipKnife()
+    local knife = getKnifeInBackpack()
+    if knife then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid:EquipTool(knife)
+            print("Knife equipped successfully")
+            return true
+        end
+    end
+    return false
+end
+
+local function unequipKnife()
+    local knife = getKnifeInCharacter()
+    if knife then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid:UnequipTools()
+            print("Knife unequipped")
+            return true
+        end
+    end
+    return false
+end
+
+local function monitorKnife()
+    while true do
+        wait(1)
+        
+        local equippedKnife = getKnifeInCharacter()
+        local backpackKnife = getKnifeInBackpack()
+        
+        if not equippedKnife and backpackKnife then
+            -- Нож в инвентаре, но не экипирован - экипируем
+            print("Equipping knife from backpack...")
+            equipKnife()
+            wait(2)
+        elseif equippedKnife then
+            -- Нож экипирован - ждем
+            print("Knife is equipped, waiting...")
+            while getKnifeInCharacter() do
+                wait(0.5)
+            end
+        else
+            -- Ножа нет нигде
+            print("No knife found anywhere")
+            wait(2)
+        end
+    end
+end
+
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+end)
+
+monitorKnife()
