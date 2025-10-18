@@ -1,0 +1,159 @@
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+-- Настройки
+local AIM_SETTINGS = {
+    Hotkey = Enum.KeyCode.Q,
+    TeamCheck = true,
+    MaxDistance = 1000,
+    ClickButton = 1,
+    FOV = 100
+}
+
+-- Функция для получения точной позиции мыши
+local function getMousePosition()
+    return UserInputService:GetMouseLocation()
+end
+
+-- Функция для получения позиции игрока на экране
+local function getPlayerScreenPosition(player)
+    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local camera = Workspace.CurrentCamera
+    local rootPart = player.Character.HumanoidRootPart
+    
+    local screenPosition, visible = camera:WorldToViewportPoint(rootPart.Position)
+    
+    if visible then
+        return Vector2.new(screenPosition.X, screenPosition.Y)
+    end
+    
+    return nil
+end
+
+-- Функция для проверки, находится ли игрок в FOV
+local function isInFOV(screenPosition)
+    if not screenPosition then return false end
+    
+    local mousePos = getMousePosition()
+    local distance = (screenPosition - mousePos).Magnitude
+    
+    return distance <= AIM_SETTINGS.FOV
+end
+
+-- Функция для получения ближайшего игрока в FOV
+local function getNearestPlayerInFOV()
+    local localPlayer = Players.LocalPlayer
+    if not localPlayer or not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local mousePos = getMousePosition()
+    local localPosition = localPlayer.Character.HumanoidRootPart.Position
+    local nearestPlayer = nil
+    local nearestDistance = AIM_SETTINGS.MaxDistance
+    local nearestFOVDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            -- Проверка команды
+            if AIM_SETTINGS.TeamCheck and player.Team and localPlayer.Team and player.Team == localPlayer.Team then
+                continue
+            end
+            
+            -- Проверка на живого игрока
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health <= 0 then
+                continue
+            end
+            
+            local distance = (player.Character.HumanoidRootPart.Position - localPosition).Magnitude
+            if distance > AIM_SETTINGS.MaxDistance then
+                continue
+            end
+            
+            local screenPosition = getPlayerScreenPosition(player)
+            if screenPosition and isInFOV(screenPosition) then
+                local fovDistance = (mousePos - screenPosition).Magnitude
+                if fovDistance < nearestFOVDistance then
+                    nearestFOVDistance = fovDistance
+                    nearestPlayer = player
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer, nearestDistance
+end
+
+-- Функция для клика по позиции
+local function clickAtPosition(position)
+    if not position then return false end
+    
+    VirtualInputManager:SendMouseMoveEvent(
+        position.X,
+        position.Y,
+        game:GetService("CoreGui")
+    )
+    
+    if AIM_SETTINGS.ClickButton == 1 then
+        VirtualInputManager:SendMouseButtonEvent(
+            position.X, position.Y, 0, true, nil, 0
+        )
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(
+            position.X, position.Y, 0, false, nil, 0
+        )
+    else
+        VirtualInputManager:SendMouseButtonEvent(
+            position.X, position.Y, 1, true, nil, 0
+        )
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(
+            position.X, position.Y, 1, false, nil, 0
+        )
+    end
+    
+    return true
+end
+
+-- Основная функция для клика по ближайшему игроку в FOV
+local function clickNearestPlayerInFOV()
+    local nearestPlayer = getNearestPlayerInFOV()
+    if not nearestPlayer then
+        return false
+    end
+    
+    local screenPosition = getPlayerScreenPosition(nearestPlayer)
+    if not screenPosition then
+        return false
+    end
+    
+    return clickAtPosition(screenPosition)
+end
+
+-- Обработчик нажатия клавиши Q
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == AIM_SETTINGS.Hotkey and input.UserInputType == Enum.UserInputType.Keyboard then
+        clickNearestPlayerInFOV()
+    end
+end)
+
+-- Функция для ручного вызова
+getgenv().CLICK_NEAREST_FOV = clickNearestPlayerInFOV
+
+-- Функция для настройки
+getgenv().SETUP_AIM_CLICK = function(settings)
+    if settings.Hotkey then AIM_SETTINGS.Hotkey = settings.Hotkey end
+    if settings.TeamCheck ~= nil then AIM_SETTINGS.TeamCheck = settings.TeamCheck end
+    if settings.MaxDistance then AIM_SETTINGS.MaxDistance = settings.MaxDistance end
+    if settings.ClickButton then AIM_SETTINGS.ClickButton = settings.ClickButton end
+    if settings.FOV then AIM_SETTINGS.FOV = settings.FOV end
+end
